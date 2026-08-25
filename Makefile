@@ -1,7 +1,19 @@
 SHELL       ?= /bin/bash -euo pipefail
-GOOS        ?= $(shell go env GOOS)
-GOARCH      ?= $(shell go env GOARCH)
-CGO_ENABLED ?= $(shell go env CGO_ENABLED)
+GO          ?= go
+GOOS        ?= $(shell $(GO) env GOOS)
+GOARCH      ?= $(shell $(GO) env GOARCH)
+CGO_ENABLED ?= $(shell $(GO) env CGO_ENABLED)
+BIN         ?= pwd_gen
 
-encrypt: main.go
-	GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=${CGO_ENABLED} go build -ldflags="-s -w" -trimpath -o $@
+.PHONY: build test check encrypt
+
+build: main.go
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_ENABLED) $(GO) build -ldflags="-s -w" -trimpath -o $(BIN) .
+
+test:
+	$(GO) test ./...
+
+check: test
+	$(GO) vet ./...
+
+encrypt: build
