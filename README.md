@@ -90,6 +90,7 @@ download wordlists at runtime.
 | `--emit FIELDS` | Comma-separated structured fields: `plaintext`, `sha256`, `scram`, `name`, or `all` (the default). |
 | `--yaml-indent N` | YAML indentation, default `2`, supported range `2`–`9`; valid only with `--format yaml`. |
 | `--scram-iterations N` | Positive SCRAM-SHA-256 iteration count, default `4096`. |
+| `--version` | Print the linker-injected release version (or `dev` for local builds) and exit. |
 
 `--emit` selects fields only for YAML and JSON. `plain` and `scram` retain
 their one-value contracts and reject a non-default `--emit` selection.

@@ -120,6 +120,7 @@ func TestHelpIncludesRegisteredFlagsAndDefaults(t *testing.T) {
 		"-length int",
 		"-scram-iterations int",
 		"-wordlist string",
+		"-version",
 		"(default 32)",
 		"(default \"safe\")",
 		"Positional passwords can be exposed",
@@ -127,6 +128,14 @@ func TestHelpIncludesRegisteredFlagsAndDefaults(t *testing.T) {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("help omitted %q:\n%s", want, stderr)
 		}
+	}
+}
+
+func TestVersionWritesOnlyTheBuildVersion(t *testing.T) {
+	stdout, stderr, err := runCLI(t, []string{"--version"}, "", nil)
+	requireNoError(t, err)
+	if stdout != version+"\n" || stderr != "" {
+		t.Fatalf("version output/diagnostics = %q/%q", stdout, stderr)
 	}
 }
 

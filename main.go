@@ -55,6 +55,7 @@ var alphabetPresets = map[string]string{
 var (
 	clientRawKey = []byte("Client Key")
 	serverRawKey = []byte("Server Key")
+	version      = "dev"
 )
 
 type config struct {
@@ -64,6 +65,7 @@ type config struct {
 	stdin           bool
 	format          string
 	name            string
+	version         bool
 	count           int
 	emit            string
 	yamlIndent      int
@@ -149,6 +151,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, randomReader 
 		}
 		return err
 	}
+	if cfg.version {
+		_, err := fmt.Fprintln(stdout, version)
+		return err
+	}
 	if randomReader == nil {
 		return errors.New("random reader is required")
 	}
@@ -220,6 +226,7 @@ func parseConfig(args []string, helpOutput io.Writer) (config, []string, error) 
 	fs.BoolVar(&cfg.stdin, "stdin", false, "read one non-empty UTF-8 password from standard input")
 	fs.StringVar(&cfg.format, "format", "yaml", "output: yaml, json, plain, or scram")
 	fs.StringVar(&cfg.name, "name", "", "record name; emitted even when empty in structured output")
+	fs.BoolVar(&cfg.version, "version", false, "print the build version and exit")
 	fs.IntVar(&cfg.count, "count", 1, "independent generated passwords; unavailable for supplied input")
 	fs.StringVar(&cfg.emit, "emit", "all", "structured fields: plaintext, sha256, scram, name, or all")
 	fs.IntVar(&cfg.yamlIndent, "yaml-indent", defaultIndent, "YAML indentation from 2 through 9; YAML output only")

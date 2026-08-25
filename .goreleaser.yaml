@@ -1,14 +1,17 @@
-project_name: scram-sha-256
+version: 2
+project_name: pwd_gen
 
-# https://goreleaser.com/customization/build/
-# https://go.dev/doc/install/source#environment
 builds:
-  - env:
+  - id: pwd_gen
+    main: .
+    binary: pwd_gen
+    env:
       - CGO_ENABLED=0
     flags:
       - -trimpath
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
     goos:
       - linux
       - darwin
@@ -17,8 +20,6 @@ builds:
       - amd64
       - arm
       - arm64
-    # https://github.com/golang/go/wiki/GoArm
-    # https://www.cs.umd.edu/~meesh/cmsc411/website/proj01/arm/armchip.html
     goarm:
       - 6
       - 7
@@ -28,9 +29,20 @@ builds:
       - goos: windows
         goarch: arm
 
-# https://goreleaser.com/customization/archive/
 archives:
-  - name_template: '{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ with .Arm }}-v{{ . }}{{ end }}'
-    format: binary
-    replacements:
-      amd64: x86_64
+  - id: pwd_gen
+    ids:
+      - pwd_gen
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    builds_info:
+      mtime: "{{ .CommitTimestamp }}"
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
