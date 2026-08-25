@@ -60,18 +60,16 @@ jobs:
           check-latest: true
           cache: true
 
+      - name: Check
+        run: make check
+
       - name: Build
-        run: make
+        run: make build
 
       - name: Create role for test
         run: |
-          echo -n "CREATE ROLE test WITH LOGIN PASSWORD " >> $SQL_FILE_PATH
-          echo -n "'"                                     >> $SQL_FILE_PATH
-          ./encrypt test | tr -d '\n'                     >> $SQL_FILE_PATH
-          echo "';"                                       >> $SQL_FILE_PATH
-          cat $SQL_FILE_PATH | tee /dev/stderr | psql
+          printf "CREATE ROLE test WITH LOGIN PASSWORD '%s';\n" "$(./pwd_gen --format scram test)" | psql
         env:
-          SQL_FILE_PATH: /tmp/create_role.sql
           PGUSER: postgres
           PGPASSWORD: postgres
 
