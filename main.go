@@ -1,3 +1,7 @@
+// Generates passwords and their "hashed" formats (SHA-256 and SCRAM-SHA-256)
+// SHA256 is a common hashing mechanism for passwords.
+// SCRAM-SHA-256 is used by postgres.
+
 package main
 
 // @see https://github.com/postgres/postgres/blob/c30f54ad732ca5c8762bb68bbe0f51de9137dd72/src/interfaces/libpq/fe-auth.c#L1167-L1285
@@ -11,13 +15,16 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"io"
-	"os"
+	"log"
+	"math/big"
 	"syscall"
 
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/crypto/ssh/terminal"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -42,14 +49,6 @@ func genSalt(size int) ([]byte, error) {
 		return nil, err
 	}
 	return salt, nil
-}
-
-func readRawPassword(fd int) ([]byte, error) {
-	input, err := terminal.ReadPassword(fd)
-	if err != nil {
-		return nil, err
-	}
-	return input, nil
 }
 
 func encodeB64(src []byte) (dst []byte) {
@@ -84,33 +83,75 @@ func encryptPassword(rawPassword, salt []byte, iter, keyLen int) string {
 	)
 }
 
-func main() {
-	var rawPassword []byte
-
-	if len(os.Args) > 1 {
-		rawPassword = []byte(os.Args[1])
-	} else {
-		fmt.Print("Raw password: ")
-		passwd, err := readRawPassword(int(syscall.Stdin))
+func generatePassword(length int) ([]byte, error) {
+	const (
+		// remove confusing chars: iIlL1, oO0, sS5
+		lowerCharSet   = "abcdedfghjkmnpqrt"
+		upperCharSet   = "ABCDEFGHJKMNPQRTUVWXYZ"
+		specialCharSet = "" // "!@#$%&*"
+		numberSet      = "2346789"
+		allCharSet     = lowerCharSet + upperCharSet + specialCharSet + numberSet
+	)
+	ret := make([]byte, length)
+	for i := 0; i < length; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(allCharSet))))
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return []byte{}, err
 		}
-		rawPassword = passwd
-		fmt.Println()
+		ret[i] = allCharSet[num.Int64()]
 	}
+	return ret, nil
+}
 
-	if len(rawPassword) == 0 {
-		fmt.Println("empty password")
-		os.Exit(1)
+type options struct {
+	ReadPasswordInteractively bool
+	PasswordLength            int
+	OutputFormat              string
+	Name                      string
+}
+
+func getPassword(args []string, flags options) ([]byte, error) {
+	if len(args) == 1 {
+		return []byte(args[0]), nil
+	} else if flags.ReadPasswordInteractively {
+		fmt.Print("Enter password: ")
+		return terminal.ReadPassword(syscall.Stdin)
+	} else {
+		return generatePassword(32)
 	}
-
+}
+func run(args []string, flags options) (err error) {
+	rawPassword, err := getPassword(args, flags)
+	if err != nil {
+		return err
+	}
 	salt, err := genSalt(saltSize)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
-	fmt.Printf("%s\n", encryptPassword(rawPassword, salt, iterationCnt, digestLen))
-	os.Exit(0)
+	d, err := yaml.Marshal([]struct{ Plaintext, SHA_256, SCRAM_SHA_256, Name string }{
+		{
+			Plaintext:     string(rawPassword),
+			SHA_256:       fmt.Sprintf("%x", getSHA256Sum(rawPassword)),
+			SCRAM_SHA_256: fmt.Sprintf("%s", encryptPassword(rawPassword, salt, iterationCnt, digestLen)),
+			Name:          flags.Name,
+		},
+	})
+	fmt.Println(string(d))
+	return
+}
+
+func main() {
+	flags := options{}
+	flag.IntVar(&flags.PasswordLength, "length", 32, "length of password")
+	flag.BoolVar(&flags.ReadPasswordInteractively, "interactive", false, "take password input")
+	flag.StringVar(&flags.OutputFormat, "format", "yaml", "output format")
+	flag.StringVar(&flags.Name, "name", "", "friendly name of password")
+	flag.Parse()
+	args := flag.Args()
+	err := run(args, flags)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
